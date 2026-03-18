@@ -1,0 +1,119 @@
+package com.yuanlrc.campus_market.controller.admin;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.yuanlrc.campus_market.bean.CodeMsg;
+import com.yuanlrc.campus_market.bean.PageBean;
+import com.yuanlrc.campus_market.bean.Result;
+import com.yuanlrc.campus_market.entity.common.News;
+import com.yuanlrc.campus_market.service.admin.OperaterLogService;
+import com.yuanlrc.campus_market.service.common.NewsService;
+import com.yuanlrc.campus_market.util.ValidateEntityUtil;
+
+/**
+ * 后台新闻公告管理控制器
+ */
+@RequestMapping("/news")
+@Controller
+public class NewsController {
+
+	@Autowired
+	private NewsService newsService;
+	@Autowired
+	private OperaterLogService operaterLogService;
+
+	/**
+	 * 新闻列表
+	 */
+	@RequestMapping(value = "/list")
+	public String list(Model model, News news, PageBean<News> pageBean) {
+		model.addAttribute("pageBean", newsService.findList(pageBean, news));
+		model.addAttribute("title", news.getTitle());
+		return "admin/news/list";
+	}
+
+	/**
+	 * 新闻添加页面
+	 */
+	@RequestMapping(value = "/add", method = RequestMethod.GET)
+	public String add(Model model) {
+		return "admin/news/add";
+	}
+
+	/**
+	 * 新闻添加表单提交
+	 */
+	@RequestMapping(value = "/add", method = RequestMethod.POST)
+	@ResponseBody
+	public Result<Boolean> add(News news) {
+		CodeMsg validate = ValidateEntityUtil.validate(news);
+		if (validate.getCode() != CodeMsg.SUCCESS.getCode()) {
+			return Result.error(validate);
+		}
+		News savedNews = newsService.save(news);
+		if (savedNews == null) {
+			return Result.error(CodeMsg.ADMIN_NEWS_ADD_ERROR);
+		}
+		operaterLogService.add("添加新闻公告：" + news.getTitle());
+		return Result.success(true);
+	}
+
+	/**
+	 * 新闻编辑页面
+	 */
+	@RequestMapping(value = "/edit", method = RequestMethod.GET)
+	public String edit(Model model, @RequestParam(name = "id", required = true) Long id) {
+		model.addAttribute("news", newsService.find(id));
+		return "admin/news/edit";
+	}
+
+	/**
+	 * 新闻编辑表单提交
+	 */
+	@RequestMapping(value = "/edit", method = RequestMethod.POST)
+	@ResponseBody
+	public Result<Boolean> edit(News news) {
+		CodeMsg validate = ValidateEntityUtil.validate(news);
+		if (validate.getCode() != CodeMsg.SUCCESS.getCode()) {
+			return Result.error(validate);
+		}
+		News existNews = newsService.find(news.getId());
+		if (existNews == null) {
+			return Result.error(CodeMsg.ADMIN_NEWS_EDIT_ERROR);
+		}
+		existNews.setTitle(news.getTitle());
+		existNews.setContent(news.getContent());
+		existNews.setSort(news.getSort());
+		News savedNews = newsService.save(existNews);
+		if (savedNews == null) {
+			return Result.error(CodeMsg.ADMIN_NEWS_EDIT_ERROR);
+		}
+		operaterLogService.add("编辑新闻公告：" + news.getTitle());
+		return Result.success(true);
+	}
+
+	/**
+	 * 新闻删除
+	 */
+	@RequestMapping(value = "/delete", method = RequestMethod.POST)
+	@ResponseBody
+	public Result<Boolean> delete(@RequestParam(name = "id", required = true) Long id) {
+		News news = newsService.find(id);
+		if (news == null) {
+			return Result.error(CodeMsg.DATA_ERROR);
+		}
+		try {
+			newsService.delete(id);
+		} catch (Exception e) {
+			return Result.error(CodeMsg.DATA_ERROR);
+		}
+		operaterLogService.add("删除新闻公告：" + news.getTitle());
+		return Result.success(true);
+	}
+}
